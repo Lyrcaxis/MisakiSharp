@@ -1,0 +1,12 @@
+MisakiSharp
+Copyright 2026 Lyrcaxis
+
+This is a native C# port of misaki (https://github.com/hexgrad/misaki, Apache-2.0) by hexgrad, the official G2P engine of Kokoro TTS.
+
+Portions derive from:
+- PaddleSpeech (https://github.com/PaddlePaddle/PaddleSpeech, Apache-2.0) -- the zh frontend and tone sandhi rules, via misaki.
+- jieba (https://github.com/fxsjy/jieba, MIT) -- Chinese word segmentation algorithm and dictionaries.
+- pypinyin (https://github.com/mozillazg/python-pinyin, MIT) and pypinyin-dict -- hanzi-to-pinyin data.
+- spaCy (https://github.com/explosion/spaCy, MIT) -- English tokenization rules; the bundled POS tagger is a perceptron distilled from en_core_web_sm's output.
+- num2words (https://github.com/savoirfairelinux/num2words, LGPL-2.1) -- the English number verbalization logic was ported from its sources.
+- misaki's English lexicons (us/gb gold+silver), redistributed in converted form.
