@@ -1,8 +1,9 @@
+[![NuGet](https://img.shields.io/nuget/v/MisakiSharp.svg)](https://www.nuget.org/packages/MisakiSharp/)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/MisakiSharp.svg)](https://www.nuget.org/packages/MisakiSharp/)
+
 # MisakiSharp
 
-A native C# port of [misaki](https://github.com/hexgrad/misaki) — [Kokoro TTS](https://github.com/hexgrad/kokoro)'s official G2P engine — with zero Python and zero espeak in the loop.
-
-Every module is verified at mass scale against the reference implementation, on held-out corpora it was never tuned on:
+A native C# port of [hexgrad's misaki](https://github.com/hexgrad/misaki): [Kokoro TTS](https://github.com/hexgrad/kokoro)'s official G2P engine.
 
 | Module | Verified against | Parity |
 |---|---|---|
@@ -10,24 +11,29 @@ Every module is verified at mass scale against the reference implementation, on 
 | `EnglishG2P` (lexicon, stress, numbers, currency, homographs) | misaki 0.9.4 `en.G2P` | 51,623 fixtures at 100% |
 | `EnglishTokenizer` | spaCy `en_core_web_sm` tokenization | **100%** (56,216 lines) |
 | `EnglishTagger` (2.8MB perceptron distilled from spaCy) | spaCy Penn Treebank tags | 97.5% tags → **99.20%** end-to-end phoneme parity |
+| `JapaneseG2P` (unidic lattice + cutlet kana→IPA + num2kana) | misaki 0.9.4 `JAG2P()` | **100.00%** (1593/1593 sentences) |
+| `JapaneseTagger` (MeCab-identical viterbi over unidic 3.1.0) | fugashi (misaki[ja]'s tagger) | **100.00%** (14,342/14,342 parses) |
+| `JapaneseTagger`'s connection costs (unidic's 481MB matrix compressed to 10MB) | exact matrix | 99.91% on held-out text |
+| `EspeakG2P` (es, fr-fr, hi, it, pt-br) | misaki 0.9.4 `espeak.EspeakG2P` | **100.00%** (8000/8000 sentences, 5 languages) |
+| `EspeakFallback` (English out-of-lexicon words) | misaki 0.9.4 `espeak.EspeakFallback` | **100.00%** (2914 words × en-US/en-GB) |
+| `EspeakReplay` (espeak-free es, fr-fr, it, pt-br, hi) | espeak-ng 1.52.0, held-out sentences | pt 96.2% · es 95.5% · it 85.8% · fr 83.6% · hi 53.6% (whole corpus, nothing excluded) |
+| `EspeakReplay` (espeak-free en-us/en-gb OOV fallback) | espeak-ng 1.52.0, misaki's 2914 OOV words | us 88.1% · gb 88.1% (via `EspeakFallback`, whole fixture) |
+| `HindiProvider` (espeak-free hi, superseded by `EspeakReplay`) | espeak-ng 1.52.0 | **100.00%** on lexicon-covered sentences (~54% full coverage) |
 
 ## Usage
 
 ```csharp
-var english = new EnglishG2P(EnglishG2P.DefaultTagger); // American English (british: true for en-GB)
-var (phonemes, tokens) = english.Phonemize("On March 3rd, I read that the record was $1,234.56!");
+var englishG2P = new EnglishG2P(british: false);
+var (phonemes, tokens) = englishG2P.Phonemize("On March 3rd, I read that the record was $1,234.56!");
 
-var zhuyin = ChineseG2P.Phonemize("你好，世界！欢迎使用。"); // Kokoro v1.1 format, tone sandhi included
-var arrows = ChineseG2P.PhonemizeLegacy("你好，世界！");     // Kokoro v1.0 format, for the older zh voices
+// Japanese and Chinese
+var jPhonemes = JapaneseG2P.Phonemize("日本語は面白い！");
+var cPhonemes = ChineseG2P.Phonemize("你好，世界！欢迎使用。");
+
+// it's called EspeakG2P but it's distilled, there's no actual espeak in the backend
+var langs = EspeakG2P.Languages; // `["es", "fr-fr", "it", "pt-br", "hi"]`
+var spanish = new EspeakG2P("es").Phonemize("El 8% a 25 °C, según el zurbicalismo.");
 ```
-
-Phoneme output uses Kokoro's phoneme alphabet. Rare out-of-lexicon English words return unk (`❓`) unless you plug an `espeakFallback`; latin spans inside Chinese text route through `ChineseG2P.EnglishPhonemizer` when set.
-
-The building blocks are public and useful on their own: `EnglishTokenizer` (spaCy-equivalent tokenization), `EnglishTagger` (fast PTB tagging), `PossegTagger` (bit-exact jieba posseg / cut-for-search), `ToneSandhi`, and `ZhFrontend`.
-
-## Data
-
-The dictionaries (~22MB) embed into the assembly — pinyin/jieba tables, misaki's English lexicons, spaCy-derived tokenization rules, and the distilled tagger. Everything regenerates from `generators/*.py` against the upstream sources.
 
 ## License
 - [Apache-2.0](LICENSE), like misaki itself. See [NOTICE](NOTICE) for the full lineage (PaddleSpeech, jieba, pypinyin, spaCy, num2words).

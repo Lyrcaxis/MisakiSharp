@@ -9,10 +9,10 @@
 
     <PropertyGroup>
         <PackageId>MisakiSharp</PackageId>
-        <Version>1.0.0</Version>
+        <Version>2.0.0</Version>
         <Authors>Lyrcaxis</Authors>
-        <Description>Native C# port of misaki -- Kokoro TTS's official G2P engine. English (spacy-equivalent tokenization, distilled POS tagger, full lexicon) and Chinese (jieba posseg, tone sandhi, pinyin-to-zhuyin) grapheme-to-phoneme conversion, verified at mass scale against the reference implementation.</Description>
-        <PackageTags>Misaki, G2P, Phonemes, TTS, Kokoro, NLP, Tokenizer, POSTagger, jieba, pinyin, Chinese, English</PackageTags>
+        <Description>A phonemizer, that is a Native C# port of misaki, Kokoro's G2P engine. Supports English, Chinese, Japanese, Spanish, French, Hindi, Italian, and Portuguese.</Description>
+        <PackageTags>Misaki, G2P, Phonemes, TTS, Kokoro, NLP, Tokenizer, POSTagger, jieba, pinyin, MeCab, unidic, Chinese, English, Japanese, Spanish, French, Hindi, Italian, Portuguese, espeak</PackageTags>
         <RepositoryUrl>https://github.com/Lyrcaxis/MisakiSharp</RepositoryUrl>
         <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -27,6 +27,18 @@
         <EmbeddedResource Include="data/en_lexicon_gb.tsv.gz" LogicalName="MisakiSharp.en_lexicon_gb.tsv.gz" />
         <EmbeddedResource Include="data/en_tokenizer.tsv.gz" LogicalName="MisakiSharp.en_tokenizer.tsv.gz" />
         <EmbeddedResource Include="data/en_tagger.bin.gz" LogicalName="MisakiSharp.en_tagger.bin.gz" WithCulture="false" />
+        <EmbeddedResource Include="data/hi_espeak_lexicon.tsv.gz" LogicalName="MisakiSharp.hi_espeak_lexicon.tsv.gz" />
+        <EmbeddedResource Include="data/es_espeak.tsv.gz" LogicalName="MisakiSharp.es_espeak.tsv.gz" />
+        <EmbeddedResource Include="data/fr_espeak.tsv.gz" LogicalName="MisakiSharp.fr_espeak.tsv.gz" />
+        <EmbeddedResource Include="data/it_espeak.tsv.gz" LogicalName="MisakiSharp.it_espeak.tsv.gz" />
+        <EmbeddedResource Include="data/pt_espeak.tsv.gz" LogicalName="MisakiSharp.pt_espeak.tsv.gz" />
+        <EmbeddedResource Include="data/hi_espeak.tsv.gz" LogicalName="MisakiSharp.hi_espeak.tsv.gz" />
+        <EmbeddedResource Include="data/enus_espeak.tsv.gz" LogicalName="MisakiSharp.enus_espeak.tsv.gz" />
+        <EmbeddedResource Include="data/engb_espeak.tsv.gz" LogicalName="MisakiSharp.engb_espeak.tsv.gz" />
+        <EmbeddedResource Include="data/ja_words.txt.gz" LogicalName="MisakiSharp.ja_words.txt.gz" />
+        <EmbeddedResource Include="data/ja_lexicon.tsv.gz" LogicalName="MisakiSharp.ja_lexicon.tsv.gz" />
+        <EmbeddedResource Include="data/ja_char_unk.tsv.gz" LogicalName="MisakiSharp.ja_char_unk.tsv.gz" />
+        <EmbeddedResource Include="data/ja_matrix_compact.bin.gz" LogicalName="MisakiSharp.ja_matrix_compact.bin.gz" WithCulture="false" />
         <None Include="README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 

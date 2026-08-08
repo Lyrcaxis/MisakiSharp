@@ -9,4 +9,9 @@ Portions derive from:
 - pypinyin (https://github.com/mozillazg/python-pinyin, MIT) and pypinyin-dict -- hanzi-to-pinyin data.
 - spaCy (https://github.com/explosion/spaCy, MIT) -- English tokenization rules; the bundled POS tagger is a perceptron distilled from en_core_web_sm's output.
 - num2words (https://github.com/savoirfairelinux/num2words, LGPL-2.1) -- the English number verbalization logic was ported from its sources.
-- misaki's English lexicons (us/gb gold+silver), redistributed in converted form.
+- phonemizer (https://github.com/bootphon/phonemizer, GPL-3.0) -- EspeakG2P/EspeakFallback reproduce its espeak backend behavior (punctuation preservation and espeak post-processing), via misaki.
+- cutlet (https://github.com/polm/cutlet, MIT) -- the Japanese kana-to-romaji conversion logic, via misaki's adapted copy.
+- Convert-Numbers-to-Japanese (https://github.com/Greatdane/Convert-Numbers-to-Japanese, MIT) -- Japanese number verbalization, via misaki's num2kana.
+- MeCab (https://taku910.github.io/mecab/, BSD/LGPL/GPL triple license) -- JapaneseTagger reimplements its lattice algorithm from its documented behavior.
+- UniDic 3.1.0 (https://clrd.ninjal.ac.jp/unidic/, BSD-3-Clause) -- the Japanese lexicon and character tables, redistributed in converted form; the connection matrix is fetched separately.
+- misaki's English lexicons (us/gb gold+silver) and ja_words list, redistributed in converted form.

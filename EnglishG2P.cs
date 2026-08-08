@@ -47,9 +47,14 @@ public sealed partial class EnglishG2P {
         return [.. tokens.Select((t, i) => (t.Text, tags[i], t.Whitespace))];
     }
 
+    /// <param name="tagger"> Tokenizes and PTB-tags the text. Defaults to the built-in <see cref="DefaultTagger"/>. </param>
+    /// <param name="espeakFallback"> Answers out-of-lexicon words. Defaults to the espeak-free <see cref="EspeakReplay"/>-backed
+    /// <see cref="EspeakFallback"/> for the dialect, loaded on the first word that needs it; pass <c>_ => null</c> to get unk instead. </param>
     /// <param name="flapsToT"> Misaki rewrites 'ɾ'->'T' and 'ʔ'->'t' for every model version except 2.0 -- disable for v2 vocabs. </param>
-    public EnglishG2P(Tagger tagger, bool british = false, Func<string, string> espeakFallback = null, string unk = "❓", bool flapsToT = true) {
-        (this.tagger, this.fallback, this.unk, this.flapsToT) = (tagger, espeakFallback, unk, flapsToT);
+    public EnglishG2P(Tagger tagger = null, bool british = false, Func<string, string> espeakFallback = null, string unk = "❓", bool flapsToT = true) {
+        var voice = british ? "en-gb" : "en-us";
+        fallback = espeakFallback ?? new EspeakFallback(british, chunk => EspeakReplay.Provider(voice)(chunk), flapsToT).Phonemize;
+        (this.tagger, this.unk, this.flapsToT) = (tagger ?? DefaultTagger, unk, flapsToT);
         lexicon = new Lexicon(british);
     }
 
