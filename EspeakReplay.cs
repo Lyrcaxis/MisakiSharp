@@ -144,13 +144,43 @@ public sealed class EspeakReplay {
             var final = Resolve(token[..^2]).Final;
             return new(final + PossessiveSuffix(final), final + PossessiveSuffix(final), "", "", -1, []);
         }
+        if (english && token.All(char.IsDigit)) { return Number(token); }
         return Guess(IsAllCaps(token) && !english ? token : token.ToLowerInvariant());
+    }
+
+    static readonly string[] Ones = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".Split(' ');
+    static readonly string[] Tens = "twenty thirty forty fifty sixty seventy eighty ninety".Split(' ');
+
+    /// <summary> Numbers above the lexicon's measured 0-100 rows compose from number-word rows, phrased like misaki's num2words (GB keeps "and", US drops it). </summary>
+    Entry Number(string digits) {
+        var words = digits.Length > 12 || (digits[0] == '0' && digits.Length > 1) ? digits.Select(d => Ones[d - '0']) : NumberWords(long.Parse(digits));
+        var parts = words.Select(Resolve).ToList();
+        string Joined(bool final) => string.Join(' ', parts.Select((p, i) => i == parts.Count - 1 && final ? p.Final : p.Init));
+        return new(Joined(true), Joined(false), parts[0].ONasal, parts[0].OLen, parts[0].Ctx, parts[^1].Tails);
+    }
+
+    IEnumerable<string> NumberWords(long n) {
+        if (n >= 1000) {
+            long unit = n >= 1_000_000_000 ? 1_000_000_000 : n >= 1_000_000 ? 1_000_000 : 1000;
+            foreach (var word in NumberWords(n / unit)) { yield return word; }
+            yield return unit switch { 1_000_000_000 => "billion", 1_000_000 => "million", _ => "thousand" };
+            if ((n %= unit) == 0) { yield break; }
+            if (british && n < 100) { yield return "and"; }
+        }
+        if (n >= 100) {
+            yield return Ones[n / 100];
+            yield return "hundred";
+            if ((n %= 100) == 0) { yield break; }
+            if (british) { yield return "and"; }
+        }
+        if (n >= 20) { yield return Tens[n / 10 - 2]; if (n % 10 > 0) { yield return Ones[n % 10]; } }
+        else { yield return Ones[n]; }
     }
 
     bool IsPossessive(string token) => english && token.Length > 2 && token[^1] is 's' && token[^2] is '\'' or '’';
 
-    /// <summary> espeak's regular possessive morphology, extracted from 17k measured word/word's pairs per dialect --
-    /// consulted only for names the lexicon lacks, since context-sensitive words carry their own measured row. </summary>
+    /// <summary> espeak's regular possessive morphology, extracted from 17k measured word/word's pairs per dialect
+    /// -- consulted only for names the lexicon lacks, since context-sensitive words carry their own measured row. </summary>
     string PossessiveSuffix(string final) => LastPhoneme(final) switch {
         'ʃ' => "ɪz",
         's' or 'z' or 'ʒ' => british ? "ɪz" : "ᵻz",
@@ -214,7 +244,7 @@ public sealed class EspeakReplay {
             var core = (hindi ? raw.Trim('।', '॥') : raw);
             if (core.IndexOfAny(ZeroWidth) >= 0) { core = string.Concat(core.Where(c => Array.IndexOf(ZeroWidth, c) < 0)); }
             if (core.Length == 0) { continue; }
-            if (Found(core) >= 0 || IsPossessive(core)) { tokens.Add(core); continue; }
+            if (!HasCaseCut(core) && (Found(core) >= 0 || IsPossessive(core))) { tokens.Add(core); continue; }
             int start = tokens.Count;
             Pieces(core, tokens);
             if (english) { for (int j = start + 2; j < tokens.Count; j++) { if (tokens[j - 1] == "-") { glued.Add(j); } } }
@@ -222,16 +252,26 @@ public sealed class EspeakReplay {
         return tokens;
     }
 
-    static void Pieces(string token, List<string> into) {
+    void Pieces(string token, List<string> into) {
         int start = -1;
         char kind = '\0';
         for (int i = 0; i <= token.Length; i++) {
             char current = i == token.Length ? '\0' : IsLetterOrMark(token[i]) ? 'L' : char.IsDigit(token[i]) ? 'N' : '\0';
-            if (current != kind && start >= 0) { into.Add(token[start..i]); start = -1; }
+            if ((current != kind || (english && kind == 'L' && CutsCase(token, i))) && start >= 0) { into.Add(token[start..i]); start = -1; }
             if (current == '\0') { if (i < token.Length) { into.Add(token[i].ToString()); } }
             else if (start < 0) { start = i; }
             kind = current;
         }
+    }
+
+    /// <summary> Measured espeak-en starts a new word at case transitions ("VoIP" -> Vo|IP, "DDoS" -> D|Do|S, "KokoroTTS" -> Kokoro|TTS),
+    /// before any dictionary lookup, except at a trailing plural 's' ("MUDs" stays whole). </summary>
+    static bool CutsCase(string token, int i) => char.IsUpper(token[i]) && (char.IsLower(token[i - 1]) || (i + 1 < token.Length && char.IsLower(token[i + 1]) && !(i + 2 == token.Length && token[i + 1] == 's')));
+
+    bool HasCaseCut(string token) {
+        if (!english) { return false; }
+        for (int i = 1; i < token.Length; i++) { if (char.IsLetter(token[i - 1]) && CutsCase(token, i)) { return true; } }
+        return false;
     }
 
     static bool IsLetterOrMark(char c) => char.IsLetter(c) || char.GetUnicodeCategory(c) is UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark or UnicodeCategory.EnclosingMark;

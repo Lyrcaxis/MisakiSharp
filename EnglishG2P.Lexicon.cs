@@ -129,7 +129,10 @@ public sealed partial class EnglishG2P {
 
         (string, int?) Lookup(string word, string tag, double? stress, TokenContext ctx) {
             bool isNNP = false;
-            if (word == word.ToUpperInvariant() && !golds.ContainsKey(word)) { (word, isNNP) = (word.ToLowerInvariant(), tag == "NNP"); }
+            if (word == word.ToUpperInvariant() && !golds.ContainsKey(word)) {
+                word = word.ToLowerInvariant(); // known words ("NOT", "REALLY") read as the word
+                isNNP = tag == "NNP" && !golds.ContainsKey(word) && !silvers.ContainsKey(word);
+            }
             var (entry, rating) = (golds.GetValueOrDefault(word), (int?)4);
             if (entry is null && !isNNP) { (entry, rating) = (silvers.GetValueOrDefault(word), 3); }
             var ps = entry as string;

@@ -9,7 +9,7 @@
 
     <PropertyGroup>
         <PackageId>MisakiSharp</PackageId>
-        <Version>2.0.0</Version>
+        <Version>2.1.0</Version>
         <Authors>Lyrcaxis</Authors>
         <Description>A phonemizer, that is a Native C# port of misaki, Kokoro's G2P engine. Supports English, Chinese, Japanese, Spanish, French, Hindi, Italian, and Portuguese.</Description>
         <PackageTags>Misaki, G2P, Phonemes, TTS, Kokoro, NLP, Tokenizer, POSTagger, jieba, pinyin, MeCab, unidic, Chinese, English, Japanese, Spanish, French, Hindi, Italian, Portuguese, espeak</PackageTags>
