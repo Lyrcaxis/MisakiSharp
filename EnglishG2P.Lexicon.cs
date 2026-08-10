@@ -40,6 +40,20 @@ public sealed partial class EnglishG2P {
             return (sections["GOLD"], sections["SILVER"]);
         }
 
+        /// <summary> Registers custom pronunciations as gold entries, so they win over silver and the espeak fallback. </summary>
+        /// <remarks> Grows capitalization variants like misaki's grow_dictionary ("kokoro" also covers "Kokoro"), with explicitly listed words winning over grown ones. </remarks>
+        public void AddWords(List<(string word, string phonemes)> dict) {
+            foreach (var (word, ps) in dict) { if (GrowVariant(word) is string variant) { golds[variant] = ps; } }
+            foreach (var (word, ps) in dict) { golds[word] = ps; }
+        }
+
+        /// <summary> The capitalization variant misaki's grow_dictionary would add ("word" == "Word"), or null when there's none. </summary>
+        static string GrowVariant(string word) {
+            if (word.Length < 2) { return null; }
+            var (lower, capitalized) = (word.ToLower(), char.ToUpper(word[0]) + word[1..].ToLower());
+            return word == lower ? (word != capitalized ? capitalized : null) : (word == capitalized ? lower : null);
+        }
+
         /// <summary> Resolves one token to (phonemes, rating), or (null, null) when the word is out of reach -- the caller decides on fallback. </summary>
         public (string Ps, int? Rating) Phonemize(MToken tk, TokenContext ctx) {
             var word = (tk.Alias ?? tk.Text).Replace('‘', '\'').Replace('’', '\'');

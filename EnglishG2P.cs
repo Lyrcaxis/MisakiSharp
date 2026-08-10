@@ -58,6 +58,10 @@ public sealed partial class EnglishG2P {
         lexicon = new Lexicon(british);
     }
 
+    /// <summary> Teaches this G2P custom pronunciations (e.g. brand names), registered as gold entries so they win over silver and the espeak fallback. </summary>
+    /// <remarks> Capitalization variants are grown automatically ("kokoro" also covers "Kokoro"). Phonemes use misaki's IPA, e.g. "kOkˈOɹO". </remarks>
+    public void AddWords(List<(string word, string phonemes)> dict) => lexicon.AddWords(dict);
+
     /// <summary> Converts text to misaki-style IPA, also returning the per-word tokens with their phonemes and 1-5 confidence ratings. </summary>
     public (string Phonemes, List<MToken> Tokens) Phonemize(string text) {
         var (processed, spans, features) = Preprocess(text);
