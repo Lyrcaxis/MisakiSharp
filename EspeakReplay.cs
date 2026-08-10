@@ -74,7 +74,7 @@ public sealed class EspeakReplay {
                     case 'L' when c[0] == "S": segments[int.Parse(c[1])][c[2]] = c[3]; break;
                     case 'L' when c[0] == "T": stressPatterns[$"{c[1]}\t{c[2]}\t{c[3]}"] = c[4]; break;
                     case 'L' when c[0] == "O": onsets[c[1]] = new("", "", c[2], c[3], int.Parse(c[4]), []); break;
-                    case 'L': codas[c[1]] = c[2..]; break;
+                    case 'L': codas[c[1]] = c.Skip(2).ToArray(); break;
                 }
             }
             at = end + 1;
@@ -116,7 +116,7 @@ public sealed class EspeakReplay {
         }
         var built = new StringBuilder();
         for (int i = 0; i < forms.Length; i++) {
-            var form = string.Join(' ', forms[i].Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            var form = string.Join(" ", forms[i].Split(' ', StringSplitOptions.RemoveEmptyEntries));
             if (form.Length == 0) { continue; }
             if (built.Length > 0 && !glued.Contains(i)) { built.Append(' '); }
             built.Append(form);
@@ -155,7 +155,7 @@ public sealed class EspeakReplay {
     Entry Number(string digits) {
         var words = digits.Length > 12 || (digits[0] == '0' && digits.Length > 1) ? digits.Select(d => Ones[d - '0']) : NumberWords(long.Parse(digits));
         var parts = words.Select(Resolve).ToList();
-        string Joined(bool final) => string.Join(' ', parts.Select((p, i) => i == parts.Count - 1 && final ? p.Final : p.Init));
+        string Joined(bool final) => string.Join(" ", parts.Select((p, i) => i == parts.Count - 1 && final ? p.Final : p.Init));
         return new(Joined(true), Joined(false), parts[0].ONasal, parts[0].OLen, parts[0].Ctx, parts[^1].Tails);
     }
 
@@ -223,7 +223,7 @@ public sealed class EspeakReplay {
     Entry Parse(int row) {
         int start = rows[row], end = Array.IndexOf(blob, (byte)'\n', start);
         var c = Encoding.UTF8.GetString(blob, start, (end < 0 ? blob.Length : end) - start).Split('\t');
-        return new(c[1], c[2] == "=" ? c[1] : c[2], c[3], c[4], c[5].Length == 0 ? -1 : int.Parse(c[5]), c[6..]);
+        return new(c[1], c[2] == "=" ? c[1] : c[2], c[3], c[4], c[5].Length == 0 ? -1 : int.Parse(c[5]), c.Skip(6).ToArray());
     }
 
     /// <summary> espeak phonemizes the typographic and the straight apostrophe identically, but a corpus writes one and a fixture the other. </summary>
@@ -393,13 +393,13 @@ public sealed class EspeakReplay {
     static string ApplyHead(string form, string delta) {
         if (delta.Length == 0) { return form; }
         int bar = delta.IndexOf('|');
-        return string.Concat(delta.AsSpan(bar + 1), form.AsSpan(Math.Min(int.Parse(delta[..bar]), form.Length)));
+        return delta.Substring(bar + 1) + form.Substring(Math.Min(int.Parse(delta[..bar]), form.Length));
     }
 
     static string ApplyTail(string form, string delta) {
         if (delta.Length == 0) { return form; }
         int bar = delta.IndexOf('|');
-        return string.Concat(form.AsSpan(0, Math.Max(0, form.Length - int.Parse(delta[..bar]))), delta.AsSpan(bar + 1));
+        return form.Substring(0, Math.Max(0, form.Length - int.Parse(delta[..bar]))) + delta.Substring(bar + 1);
     }
 
     /// <summary> Last real phoneme character, skipping stress marks, espeak's '-' marker, ties and combining diacritics. </summary>

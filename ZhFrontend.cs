@@ -74,7 +74,7 @@ public sealed partial class ZhFrontend(
                 if (v != "" && (!IsPunc(v) || v != c)) { phones.Add(v); }
             }
             var joined = string.Join("_", phones).Replace("_eR", "_er").Replace("R", "_R");
-            token.Phonemes = string.Concat(DigitStart().Replace(joined, "_").Split('_').Select(p => zhMap.GetValueOrDefault(p, unk)));
+            token.Phonemes = string.Concat(DigitStart.Replace(joined, "_").Split('_').Select(p => zhMap.GetValueOrDefault(p, unk)));
             tokens.Add(token);
         }
         return (string.Concat(tokens.Select(t => (t.Phonemes ?? unk) + t.Whitespace)), tokens);
@@ -112,7 +112,7 @@ public sealed partial class ZhFrontend(
 
     static bool IsPunc(string s) => s.Length == 1 && punc.Contains(s[0]);
 
-    [GeneratedRegex(@"(?=\d)")] private static partial Regex DigitStart();
+    static readonly Regex DigitStart = new(@"(?=\d)", RegexOptions.Compiled);
 }
 
 /// <summary> Port of misaki zh.py's ZHG2P (v1.1 glue): arabic numbers to hanzi (cn2an "an2cn"), CJK punctuation mapping, then en/zh interleave around <see cref="ZhFrontend"/>. </summary>
@@ -125,7 +125,7 @@ public sealed partial class ZhG2P(ZhFrontend frontend, Func<string, string> enCa
         if (text.Trim() is "") { return ""; }
         text = MapPunctuation(ConvertNumbers(text));
         var segments = new List<string>();
-        foreach (Match match in EnZhInterleave().Matches(text)) {
+        foreach (Match match in EnZhInterleave.Matches(text)) {
             var (en, zh) = (match.Groups[1].Value.Trim(), match.Groups[2].Value.Trim());
             if (zh != "") { segments.Add(frontend.Phonemize(zh).phonemes); }
             else { segments.Add(enCallable is null ? unk : enCallable(en)); }
@@ -144,12 +144,12 @@ public sealed partial class ZhG2P(ZhFrontend frontend, Func<string, string> enCa
     /// <summary> Faithful port of cn2an.transform(text, "an2cn"): ranges, dates, fractions, percents, celsius, then plain numbers -- in that exact pass order. </summary>
     /// <remarks> Years read digit-by-digit ("2024年" -> 二零二四年), the rest through cn2an's quirky "low" integer algorithm (ported verbatim, string replaces and all). Numbers over 16 integer digits stay arabic, like cn2an's warn-and-skip. </remarks>
     public static string ConvertNumbers(string text) {
-        text = RangeBeforeMeasureWord().Replace(text, m => m.Value.Split('-') is [var start, var end] && (NumberToHanzi(start), NumberToHanzi(end)) is (string s, string e) ? $"{s}到{e}" : m.Value);
-        text = DateNumber().Replace(text, m => MonthDayDigits().Replace(YearDigits().Replace(m.Value, ym => DigitsToHanzi(ym.Value)), dm => IntegerToHanzi(dm.Value)));
-        text = Fraction().Replace(text, m => m.Value.Split('/') is [var num, var den] && (IntegerToHanzi(num), IntegerToHanzi(den)) is (string n, string d) ? $"{d}分之{n}" : m.Value);
-        text = Percent().Replace(text, m => NumberToHanzi(m.Value[..^1]) is string number ? $"百分之{number}" : m.Value);
-        text = Celsius().Replace(text, m => NumberToHanzi(m.Value[..^1]) is string number ? $"{number}摄氏度" : m.Value);
-        return PlainNumber().Replace(text, m => NumberToHanzi(m.Value) ?? m.Value);
+        text = RangeBeforeMeasureWord.Replace(text, m => m.Value.Split('-') is [var start, var end] && (NumberToHanzi(start), NumberToHanzi(end)) is (string s, string e) ? $"{s}到{e}" : m.Value);
+        text = DateNumber.Replace(text, m => MonthDayDigits.Replace(YearDigits.Replace(m.Value, ym => DigitsToHanzi(ym.Value)), dm => IntegerToHanzi(dm.Value)));
+        text = Fraction.Replace(text, m => m.Value.Split('/') is [var num, var den] && (IntegerToHanzi(num), IntegerToHanzi(den)) is (string n, string d) ? $"{d}分之{n}" : m.Value);
+        text = Percent.Replace(text, m => NumberToHanzi(m.Value[..^1]) is string number ? $"百分之{number}" : m.Value);
+        text = Celsius.Replace(text, m => NumberToHanzi(m.Value[..^1]) is string number ? $"{number}摄氏度" : m.Value);
+        return PlainNumber.Replace(text, m => NumberToHanzi(m.Value) ?? m.Value);
     }
 
     /// <summary> an2cn "low" mode: optional '-' sign and decimal tail around <see cref="IntegerToHanzi"/>. Null when cn2an would refuse (17+ integer digits). </summary>
@@ -172,7 +172,7 @@ public sealed partial class ZhG2P(ZhFrontend frontend, Func<string, string> enCa
             if (i > 0 && sb[^1] != '零') { sb.Append('零'); }
         }
         var result = sb.ToString().Replace("零零", "零").Replace("零万", "万").Replace("零亿", "亿").Replace("亿万", "亿").Trim('零');
-        result = WanYiZeroThousand().Replace(result, "$1$2");
+        result = WanYiZeroThousand.Replace(result, "$1$2");
         if (result.StartsWith("一十")) { result = result[1..]; }
         return result is "" ? "零" : result;
     }
@@ -180,14 +180,14 @@ public sealed partial class ZhG2P(ZhFrontend frontend, Func<string, string> enCa
     static string DigitsToHanzi(string digits) => string.Concat(DigitsToAscii(digits).Select(d => numerals[d - '0']));
     static string DigitsToAscii(string digits) => string.Concat(digits.Select(d => (char)('0' + (int)char.GetNumericValue(d))));
 
-    [GeneratedRegex(@"([A-Za-z '-]*[A-Za-z][A-Za-z '-]*)|([^A-Za-z]+)")] private static partial Regex EnZhInterleave();
-    [GeneratedRegex(@"\d+(\.\d+)?-\d+(\.\d+)?(?=(斤|克|千克|公斤|吨|米|厘米|毫米|公里|升|毫升|元|角|分|个|只|条|张|块|瓶|杯|份|本|辆|台|匹|头|位|亩|小时|分钟|秒|天|半))")] private static partial Regex RangeBeforeMeasureWord();
-    [GeneratedRegex(@"(\d{2,4}年)?(\d{1,2}月)?(\d{1,2}日)?")] private static partial Regex DateNumber();
-    [GeneratedRegex(@"\d+(?=年)")]      private static partial Regex YearDigits();
-    [GeneratedRegex(@"\d+")]            private static partial Regex MonthDayDigits();
-    [GeneratedRegex(@"\d+/\d+")]        private static partial Regex Fraction();
-    [GeneratedRegex(@"-?(\d+\.)?\d+%")] private static partial Regex Percent();
-    [GeneratedRegex(@"\d+℃")]           private static partial Regex Celsius();
-    [GeneratedRegex(@"-?(\d+\.)?\d+")]  private static partial Regex PlainNumber();
-    [GeneratedRegex(@"([万亿])零([一二三四五六七八九壹贰叁肆伍陆柒捌玖][千仟])")] private static partial Regex WanYiZeroThousand();
+    static readonly Regex EnZhInterleave = new(@"([A-Za-z '-]*[A-Za-z][A-Za-z '-]*)|([^A-Za-z]+)", RegexOptions.Compiled);
+    static readonly Regex RangeBeforeMeasureWord = new(@"\d+(\.\d+)?-\d+(\.\d+)?(?=(斤|克|千克|公斤|吨|米|厘米|毫米|公里|升|毫升|元|角|分|个|只|条|张|块|瓶|杯|份|本|辆|台|匹|头|位|亩|小时|分钟|秒|天|半))", RegexOptions.Compiled);
+    static readonly Regex DateNumber = new(@"(\d{2,4}年)?(\d{1,2}月)?(\d{1,2}日)?", RegexOptions.Compiled);
+    static readonly Regex YearDigits = new(@"\d+(?=年)", RegexOptions.Compiled);
+    static readonly Regex MonthDayDigits = new(@"\d+", RegexOptions.Compiled);
+    static readonly Regex Fraction = new(@"\d+/\d+", RegexOptions.Compiled);
+    static readonly Regex Percent = new(@"-?(\d+\.)?\d+%", RegexOptions.Compiled);
+    static readonly Regex Celsius = new(@"\d+℃", RegexOptions.Compiled);
+    static readonly Regex PlainNumber = new(@"-?(\d+\.)?\d+", RegexOptions.Compiled);
+    static readonly Regex WanYiZeroThousand = new(@"([万亿])零([一二三四五六七八九壹贰叁肆伍陆柒捌玖][千仟])", RegexOptions.Compiled);
 }

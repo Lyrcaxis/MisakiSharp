@@ -42,7 +42,7 @@ public static class JapaneseTagger {
         }
         var (a, b, acc) = (rightLc * rank, leftRc * rank, 0L);
         for (int k = 0; k < rank; k++) { acc += (long) factorA[a + k] * factorB[b + k] << shiftA[k]; }
-        return Math.Clamp(((acc + (1L << (costShift - 1))) >> costShift) + rowMean[rightLc] + colMean[leftRc] - grandMean, short.MinValue, short.MaxValue);
+        return Math.Min(Math.Max(((acc + (1L << (costShift - 1))) >> costShift) + rowMean[rightLc] + colMean[leftRc] - grandMean, short.MinValue), short.MaxValue);
     }
 
     /// <summary> Segments text into unidic lexemes: (surface, pron field or null when unknown, mecab char category, unknown flag). </summary>
@@ -155,9 +155,8 @@ public static class JapaneseTagger {
             }
         }
         static uint Pack(int id, int invoke, int group, int length, uint mask) => mask | (uint) id << 18 | (uint) length << 26 | (uint) group << 30 | (uint) invoke << 31;
-        charInfo = new uint[0xffff];
         var (defaultId, defaultInvoke, defaultGroup, defaultLength) = categories["DEFAULT"];
-        Array.Fill(charInfo, Pack(defaultId, defaultInvoke, defaultGroup, defaultLength, 1u << defaultId));
+        charInfo = Enumerable.Repeat(Pack(defaultId, defaultInvoke, defaultGroup, defaultLength, 1u << defaultId), 0xffff).ToArray();
         foreach (var (lo, hi, id, mask) in ranges) {
             var (_, invoke, group, length) = categories.Values.Single(c => c.id == id);
             for (int c = lo; c <= Math.Min(hi, 0xfffe); c++) { charInfo[c] = Pack(id, invoke, group, length, mask); }

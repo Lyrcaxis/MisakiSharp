@@ -43,8 +43,15 @@ public sealed partial class EspeakG2P {
     public static Func<string, string> ProcessProvider(string language, string espeakExePath, string espeakDataPath = null) => chunk => {
         var info = new ProcessStartInfo(espeakExePath, $"--ipa --tie=^ -q -b 1 -v {language} --stdin") {
             RedirectStandardInput = true, RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true,
-            StandardInputEncoding = new UTF8Encoding(false), StandardOutputEncoding = Encoding.UTF8,
+            StandardOutputEncoding = Encoding.UTF8,
+#if !NETSTANDARD2_0
+            StandardInputEncoding = new UTF8Encoding(false),
+#endif
         };
+#if NETSTANDARD2_0
+        // The property doesn't exist at compile time pre-net5, but the host runtime may still have it (Unity's Mono, modern .NET) -- set it when present.
+        typeof(ProcessStartInfo).GetProperty("StandardInputEncoding")?.SetValue(info, new UTF8Encoding(false));
+#endif
         if (espeakDataPath is not null) { info.EnvironmentVariables["ESPEAK_DATA_PATH"] = espeakDataPath; }
         using var process = Process.Start(info);
         Task.Run(() => { process.StandardInput.Write(chunk + "\n"); process.StandardInput.Close(); });
@@ -60,7 +67,7 @@ public sealed partial class EspeakG2P {
 
     /// <summary> Splits a line into espeak-safe chunks plus the punctuation runs between them, each tagged Begin/End/Inner/Alone for restoration. </summary>
     static (List<string> Chunks, List<(string Mark, char Position)> Marks) Preserve(string line) {
-        var matches = MarksRegex().Matches(line);
+        var matches = MarksRegex.Matches(line);
         var (chunks, marks) = (new List<string>(), new List<(string, char)>());
         if (matches.Count == 1 && matches[0].Value == line) { marks.Add((line, 'A')); }
         else if (matches.Count == 0) { chunks.Add(line); }
@@ -104,18 +111,18 @@ public sealed partial class EspeakG2P {
     /// <summary> Normalizes one raw espeak result: clause newlines flatten to spaces, ties become '^', optional (lang) switch flags drop out. </summary>
     static string PostprocessChunk(string raw, bool removeLanguageFlags) {
         var line = raw.Replace("\r\n", "\n").Replace('͡', '^').Trim().Replace("\n", " ").Replace("  ", " ");
-        if (removeLanguageFlags) { line = LanguageFlags().Replace(line, ""); }
+        if (removeLanguageFlags) { line = LanguageFlags.Replace(line, ""); }
         if (line.Length == 0) { return ""; }
         return string.Concat(line.Split(' ').Select(word => word.Trim() + " "));
     }
 
-    [GeneratedRegex(@"(\s*[;:,.!?¡¿—…""«»“”(){}\[\]]+\s*)+")] private static partial Regex MarksRegex();
-    [GeneratedRegex(@"\(.+?\)")] private static partial Regex LanguageFlags();
+    static readonly Regex MarksRegex = new(@"(\s*[;:,.!?¡¿—…""«»“”(){}\[\]]+\s*)+", RegexOptions.Compiled);
+    static readonly Regex LanguageFlags = new(@"\(.+?\)", RegexOptions.Compiled);
 
     /// <summary> Minimal espeak-ng interop: initialize once per process, then espeak_TextToPhonemes with phonemizer's exact tie'd-IPA mode (0x36182). </summary>
     static class EspeakLibrary {
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int InitializeFn(int output, int bufLength, [MarshalAs(UnmanagedType.LPUTF8Str)] string dataPath, int options);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SetVoiceByNameFn([MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int InitializeFn(int output, int bufLength, [MarshalAs((UnmanagedType) 48 /* LPUTF8Str; missing from netstandard2.0's enum, same runtime value everywhere */)] string dataPath, int options);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SetVoiceByNameFn([MarshalAs((UnmanagedType) 48 /* LPUTF8Str; missing from netstandard2.0's enum, same runtime value everywhere */)] string name);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SetVoiceByPropertiesFn(ref EspeakVoice voice);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate IntPtr TextToPhonemesFn(ref IntPtr textCursor, int textMode, int phonemeMode);
         [StructLayout(LayoutKind.Sequential)] struct EspeakVoice { public IntPtr Name, Languages, Identifier; public byte Gender, Age, Variant, Xx1; public int Score; public IntPtr Spare; }
@@ -145,21 +152,38 @@ public sealed partial class EspeakG2P {
                 Marshal.Copy(utf8, 0, buffer, utf8.Length);
                 var (cursor, parts) = (buffer, new List<string>());
                 while (cursor != IntPtr.Zero) {
-                    if (Marshal.PtrToStringUTF8(textToPhonemes(ref cursor, 1, 0x02 | 0x01 << 7 | 0x361 << 8)) is { Length: > 0 } phonemes) { parts.Add(phonemes); }
+                    if (PtrToUtf8String(textToPhonemes(ref cursor, 1, 0x02 | 0x01 << 7 | 0x361 << 8)) is { Length: > 0 } phonemes) { parts.Add(phonemes); }
                 }
                 Marshal.FreeHGlobal(buffer);
-                return string.Join(' ', parts);
+                return string.Join(" ", parts);
             }
         }
 
         /// <summary> Voice codes like "en-gb" aren't direct voice names -- fall back to espeak's language matcher, same route the CLI takes. </summary>
         static void SetVoice(string voice) {
             if (setVoiceByName(voice) == 0) { return; }
-            var languages = Marshal.StringToCoTaskMemUTF8(voice);
+            var languages = Utf8ToCoTaskMem(voice);
             var byLanguage = new EspeakVoice() { Languages = languages };
             int status = setVoiceByProperties(ref byLanguage);
             Marshal.FreeCoTaskMem(languages);
             if (status != 0) { throw new ArgumentException($"espeak has no voice for '{voice}'"); }
+        }
+
+        // netstandard2.0-compatible stand-ins for Marshal.PtrToStringUTF8/StringToCoTaskMemUTF8 (net5+ only APIs). Behavior matches on every target.
+        static string PtrToUtf8String(IntPtr ptr) {
+            if (ptr == IntPtr.Zero) { return null; }
+            var length = 0;
+            while (Marshal.ReadByte(ptr, length) != 0) { length++; }
+            var bytes = new byte[length];
+            Marshal.Copy(ptr, bytes, 0, length);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        static IntPtr Utf8ToCoTaskMem(string text) {
+            var bytes = Encoding.UTF8.GetBytes(text);
+            var ptr = Marshal.AllocCoTaskMem(bytes.Length + 1);
+            Marshal.Copy(bytes, 0, ptr, bytes.Length);
+            Marshal.WriteByte(ptr, bytes.Length, 0);
+            return ptr;
         }
     }
 }
@@ -184,7 +208,7 @@ public sealed partial class EspeakFallback {
         if (ps is null) { return null; }
         ps = ps.Trim();
         foreach (var (old, neo) in e2m) { ps = ps.Replace(old, neo); }
-        ps = SyllabicConsonant().Replace(ps, "ᵊ$1").Replace("\u0329", "");
+        ps = SyllabicConsonant.Replace(ps, "ᵊ$1").Replace("\u0329", "");
         if (british) { ps = ps.Replace("e^ə", "ɛː").Replace("iə", "ɪə").Replace("ə^ʊ", "Q"); }
         else { ps = ps.Replace("o^ʊ", "O").Replace("ɜːɹ", "ɜɹ").Replace("ɜː", "ɜɹ").Replace("ɪə", "iə").Replace("ː", ""); }
         ps = ps.Replace("o", "ɔ");
@@ -192,5 +216,5 @@ public sealed partial class EspeakFallback {
         return ps.Replace("^", "");
     }
 
-    [GeneratedRegex(@"(\S)\u0329")] private static partial Regex SyllabicConsonant();
+    static readonly Regex SyllabicConsonant = new(@"(\S)\u0329", RegexOptions.Compiled);
 }

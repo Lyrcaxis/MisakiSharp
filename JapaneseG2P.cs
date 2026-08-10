@@ -61,13 +61,13 @@ public static partial class JapaneseG2P {
         }
 
         var output = string.Concat(tokens.Select(t => t.Roma.Replace("っ", "") + (t.Space ? " " : "")));
-        var phonemes = Whitespace().Replace(output.Trim(), " ").Replace('(', '«').Replace(')', '»');
-        return SokuonSpacing().Replace(phonemes, "");
+        var phonemes = Whitespace.Replace(output.Trim(), " ").Replace('(', '«').Replace(')', '»');
+        return SokuonSpacing.Replace(phonemes, "");
     }
 
     /// <summary> cutlet's _normalize_text -- wave-dash ranges, small katakana, NFKC + mojimoji's post-NFKC residue (3 quote chars), then digit runs verbalized to hiragana. </summary>
     static string Normalize(string text) {
-        text = WaveDashBeforeDigit().Replace(text, "から");
+        text = WaveDashBeforeDigit.Replace(text, "から");
         text = string.Concat(text.Select(c => SmallKatakana.IndexOf(c) is int small && small >= 0 ? FullKatakana[small] : c));
         text = text.Normalize(NormalizationForm.FormKC).Replace('‘', '`').Replace('’', '\'').Replace('”', '"');
         var sb = new StringBuilder();
@@ -81,7 +81,7 @@ public static partial class JapaneseG2P {
     }
 
     static string RomajiWord((string Surface, string Hira, int CharType) word) {
-        if (word.Surface.All(char.IsAscii)) { return word.Surface; }
+        if (word.Surface.All(c => c < 128)) { return word.Surface; }
         if (word.CharType == 3) { return string.Concat(word.Surface.Select(c => kanaTable.GetValueOrDefault(c.ToString(), c.ToString()))); }
         if (word.CharType != 6) { return ""; }
         return string.Concat(Enumerable.Range(0, word.Hira.Length).Select(i => MapKana(word.Hira, i)));
@@ -147,7 +147,7 @@ public static partial class JapaneseG2P {
         }
     }
 
-    [GeneratedRegex(@"[〜～](?=\d)")] private static partial Regex WaveDashBeforeDigit();
-    [GeneratedRegex(@"\s+")] private static partial Regex Whitespace();
-    [GeneratedRegex("(?<![!\",.:;?»—…”]) (?=ʔ)|(?<=ʔ) (?![\"«“])")] private static partial Regex SokuonSpacing();
+    static readonly Regex WaveDashBeforeDigit = new(@"[〜～](?=\d)", RegexOptions.Compiled);
+    static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
+    static readonly Regex SokuonSpacing = new("(?<![!\",.:;?»—…”]) (?=ʔ)|(?<=ʔ) (?![\"«“])", RegexOptions.Compiled);
 }

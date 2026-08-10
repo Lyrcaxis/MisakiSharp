@@ -35,7 +35,7 @@ public sealed partial class EnglishG2P {
                 if (line.Length == 0 || line[0] == '#') { continue; }
                 var fields = line.Split('\t');
                 current[fields[0]] = fields.Length == 2 && !fields[1].Contains('=') ? fields[1]
-                    : fields[1..].Select(c => c.Split('=', 2)).ToDictionary(t => t[0], t => t[1].Length > 0 ? t[1] : null);
+                    : fields.Skip(1).Select(c => c.Split('=', 2)).ToDictionary(t => t[0], t => t[1].Length > 0 ? t[1] : null);
             }
             return (sections["GOLD"], sections["SILVER"]);
         }
@@ -107,7 +107,7 @@ public sealed partial class EnglishG2P {
                 return ((ctx.FutureVowel is null || tag != "IN" ? $"{PrimaryStress}" : "") + "ɪn", 4);
             }
             if (word is "the" or "The" || (word == "THE" && tag == "DT")) { return (ctx.FutureVowel == true ? "ði" : "ðə", 4); }
-            if (tag == "IN" && VsRegex().IsMatch(word)) { return Lookup("versus", null, null, ctx); }
+            if (tag == "IN" && VsRegex.IsMatch(word)) { return Lookup("versus", null, null, ctx); }
             if (word is "used" or "Used" or "USED") {
                 var used = (Dictionary<string, string>)golds["used"];
                 return (tag is "VBD" or "JJ" && ctx.FutureTo ? used["VBD"] : used["DEFAULT"], 4);
@@ -212,7 +212,7 @@ public sealed partial class EnglishG2P {
             if (word.Length < 5 || !word.EndsWith("ing")) { return (null, null); }
             if (word.Length > 5 && IsKnown(word[..^3], tag)) { stem = word[..^3]; }
             else if (IsKnown(word[..^3] + "e", tag)) { stem = word[..^3] + "e"; }
-            else if (word.Length > 5 && DoubledIngRegex().IsMatch(word) && IsKnown(word[..^4], tag)) { stem = word[..^4]; }
+            else if (word.Length > 5 && DoubledIngRegex.IsMatch(word) && IsKnown(word[..^4], tag)) { stem = word[..^4]; }
             else { return (null, null); }
             var (ps, rating) = Lookup(stem, tag, stress, ctx);
             return (AppendIng(ps), rating);
@@ -237,7 +237,7 @@ public sealed partial class EnglishG2P {
         /// <summary> Reads out a numeric token -- cardinals, ordinals, 4-digit years, decimals, currency amounts, digit-by-digit runs, plus s/ed/ing suffixes. </summary>
         /// <remarks> Number flags tune the wording, like misaki's: 'a' says "a hundred" over "one hundred", '&'/'n' keep "and" as a word or as a "ən" tail. </remarks>
         (string, int?) GetNumber(string word, string currency, bool isHead, string numFlags) {
-            var suffix = NumSuffixRegex().Match(word).Value;
+            var suffix = NumSuffixRegex.Match(word).Value;
             if (suffix.Length > 0) { word = word[..^suffix.Length]; }
             var result = new List<(string Ps, int? Rating)>();
             if (word.StartsWith('-')) { result.Add(Lookup("minus", null, null, null)); word = word[1..]; }
@@ -289,14 +289,14 @@ public sealed partial class EnglishG2P {
                     word = Ordinals.Contains(suffix) ? Num2Words.Ordinal(value) : Num2Words.Cardinal(value);
                 } else {
                     word = word.Replace(",", "");
-                    word = word[0] == '.' ? "point " + string.Join(' ', word[1..].Select(n => Num2Words.Cardinal(n - '0')))
+                    word = word[0] == '.' ? "point " + string.Join(" ", word[1..].Select(n => Num2Words.Cardinal(n - '0')))
                                           : Num2Words.Float(double.Parse(word, CultureInfo.InvariantCulture));
                 }
                 ExtendNum(word, escape: true);
             }
 
             if (result.Count == 0) { return (null, null); }
-            var (ps, rating) = (string.Join(' ', result.Select(r => r.Ps)), result.Min(r => r.Rating));
+            var (ps, rating) = (string.Join(" ", result.Select(r => r.Ps)), result.Min(r => r.Rating));
             return suffix switch {
                 "s" or "'s" => (AppendS(ps), rating),
                 "ed" or "'d" => (AppendEd(ps), rating),
@@ -315,9 +315,9 @@ public sealed partial class EnglishG2P {
         static bool IsAlpha(string text) => text.Length > 0 && text.All(char.IsLetter);
         static char NumericIfNeeded(char c) => char.IsDigit(c) && char.GetNumericValue(c) is var n && n == (int)n ? (char)('0' + (int)n) : c;
 
-        [GeneratedRegex(@"^vs\.?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)] private static partial Regex VsRegex();
-        [GeneratedRegex(@"([bcdgklmnprstvxz])\1ing$|cking$")] private static partial Regex DoubledIngRegex();
-        [GeneratedRegex(@"[a-z']+$")] private static partial Regex NumSuffixRegex();
+        static readonly Regex VsRegex = new(@"^vs\.?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        static readonly Regex DoubledIngRegex = new(@"([bcdgklmnprstvxz])\1ing$|cking$", RegexOptions.Compiled);
+        static readonly Regex NumSuffixRegex = new(@"[a-z']+$", RegexOptions.Compiled);
     }
 
     /// <summary> The slice of num2words' English that misaki uses -- cardinals up to centillion, ordinals, year phrasing, and float "point" readouts. </summary>
@@ -355,8 +355,8 @@ public sealed partial class EnglishG2P {
             var hyphenated = words[^1].Split('-');
             var last = hyphenated[^1].ToLowerInvariant();
             hyphenated[^1] = Ords.GetValueOrDefault(last) ?? (last.EndsWith('y') ? last[..^1] + "ieth" : last + "th");
-            words[^1] = string.Join('-', hyphenated);
-            return string.Join(' ', words);
+            words[^1] = string.Join("-", hyphenated);
+            return string.Join(" ", words);
         }
 
         public static string Year(BigInteger value) {
@@ -402,7 +402,8 @@ public sealed partial class EnglishG2P {
         static List<object> SplitNum(BigInteger value) {
             foreach (var (elem, word) in Cards) {
                 if (elem > value) { continue; }
-                var (div, mod) = value == 0 ? (BigInteger.One, BigInteger.Zero) : BigInteger.DivRem(value, elem);
+                var (div, mod) = (BigInteger.One, BigInteger.Zero);
+        if (value != 0) { div = BigInteger.DivRem(value, elem, out mod); }
                 var output = new List<object>() { div == 1 ? ("one", BigInteger.One) : (object)SplitNum(div), (word, elem) };
                 if (mod != 0) { output.Add(SplitNum(mod)); }
                 return output;

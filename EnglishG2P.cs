@@ -110,7 +110,7 @@ public sealed partial class EnglishG2P {
         var (result, spans, features) = (new StringBuilder(), new List<(int, int)>(), new Dictionary<int, object>());
         text = text.TrimStart();
         int lastEnd = 0;
-        foreach (Match m in LinkRegex().Matches(text)) {
+        foreach (Match m in LinkRegex.Matches(text)) {
             AddChunkSpans(text[lastEnd..m.Index]);
             if (ParseFeature(m.Groups[2].Value) is { } feature) { features[spans.Count] = feature; }
             spans.Add((result.Length, m.Groups[1].Value.Length));
@@ -187,7 +187,7 @@ public sealed partial class EnglishG2P {
         for (int i = 0; i < tokens.Count; i++) {
             var token = tokens[i];
             var tks = token.Alias is null && token.Phonemes is null
-                ? SubtokenRegex().Matches(token.Text).Select(m => new MToken() { Text = m.Value, Tag = token.Tag, Whitespace = "", NumFlags = token.NumFlags, Stress = token.Stress }).ToList()
+                ? SubtokenRegex.Matches(token.Text).Select(m => new MToken() { Text = m.Value, Tag = token.Tag, Whitespace = "", NumFlags = token.NumFlags, Stress = token.Stress }).ToList()
                 : new List<MToken>() { token };
             tks[^1].Whitespace = token.Whitespace;
             for (int j = 0; j < tks.Count; j++) {
@@ -298,6 +298,6 @@ public sealed partial class EnglishG2P {
         return string.Concat(chars.OrderBy(x => x.Position).Select(x => x.Char));
     }
 
-    [GeneratedRegex(@"\[([^\]]+)\]\(([^\)]*)\)")] private static partial Regex LinkRegex();
-    [GeneratedRegex(@"^['‘’]+|\p{Lu}(?=\p{Lu}\p{Ll})|(?:^-)?(?:\d?[,.]?\d)+|[-_]+|['‘’]{2,}|\p{L}*?(?:['‘’]\p{L})*?\p{Ll}(?=\p{Lu})|\p{L}+(?:['‘’]\p{L})*|[^-_\p{L}'‘’\d]|['‘’]+$")] private static partial Regex SubtokenRegex();
+    static readonly Regex LinkRegex = new(@"\[([^\]]+)\]\(([^\)]*)\)", RegexOptions.Compiled);
+    static readonly Regex SubtokenRegex = new(@"^['‘’]+|\p{Lu}(?=\p{Lu}\p{Ll})|(?:^-)?(?:\d?[,.]?\d)+|[-_]+|['‘’]{2,}|\p{L}*?(?:['‘’]\p{L})*?\p{Ll}(?=\p{Lu})|\p{L}+(?:['‘’]\p{L})*|[^-_\p{L}'‘’\d]|['‘’]+$", RegexOptions.Compiled);
 }

@@ -50,13 +50,13 @@ public static partial class HindiProvider {
         foreach (var token in spoken) {
             if (token is "।" or "॥") {
                 if (!saidSomething) { rendered.Add(lexicon[token].Alone); saidSomething = true; }
-            } else if (++wi >= 0 && NumberToken().IsMatch(token)) { rendered.Add(NumberPhonemes(token)); saidSomething = true; }
+            } else if (++wi >= 0 && NumberToken.IsMatch(token)) { rendered.Add(NumberPhonemes(token)); saidSomething = true; }
             else if (lexicon.TryGetValue(token, out var forms)) {
                 rendered.Add(wordCount == 1 ? forms.Alone : wi == wordCount - 1 ? forms.Final : forms.Nonfinal);
                 saidSomething = true;
             } else { hadUnknownWords = true; }
         }
-        return string.Join(' ', rendered.Where(p => p.Length > 0));
+        return string.Join(" ", rendered.Where(p => p.Length > 0));
     }
 
     static string FinalGroup(int n, bool hasHigherGroups) {
@@ -79,8 +79,8 @@ public static partial class HindiProvider {
             if (g > 0) { parts.Add($"{group[g]} {scales[power]}"); }
         }
         if (n % 1000 > 0) { parts.Add(FinalGroup((int)(n % 1000), n >= 1000)); }
-        return string.Join(' ', parts);
+        return string.Join(" ", parts);
     }
 
-    [GeneratedRegex(@"^[०-९0-9]+$")] private static partial Regex NumberToken();
+    static readonly Regex NumberToken = new(@"^[०-९0-9]+$", RegexOptions.Compiled);
 }

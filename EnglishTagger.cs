@@ -45,7 +45,7 @@ public static class EnglishTagger {
         var (prev, prev2) = ("<S>", "<S2>");
         for (int i = 0; i < tokens.Count; i++) {
             if (!tagdict.TryGetValue(tokens[i], out var guess)) {
-                Array.Clear(scores);
+                Array.Clear(scores, 0, scores.Length);
                 var (w, pw, nw) = (norms[i + 2], norms[i + 1], norms[i + 3]);
                 Score("b"); Score("w=" + w); Score("s1=" + Suffix(w, 1)); Score("s2=" + Suffix(w, 2)); Score("s3=" + Suffix(w, 3));
                 Score("p1=" + (w.Length == 0 ? w : w[..1])); Score("sh=" + Shape(tokens[i]));
@@ -73,7 +73,7 @@ public static class EnglishTagger {
             var c = char.IsSurrogate(raw[i]) ? '�' : char.ToLowerInvariant(raw[i]);
             chars[i] = c is >= '0' and <= '9' ? '0' : c;
         }
-        return new string(chars);
+        return chars.ToString(); // Span<char>.ToString() returns the contents; string(Span) ctor is netstandard2.1+.
     }
 
     /// <summary> Case/digit/hyphen flags over the raw token -- U all-caps, F first-upper, D has-digit, H has-hyphen, '-' when none apply. </summary>

@@ -97,8 +97,8 @@ public static partial class ChineseG2P {
             foreach (var word in Segment(text[i..runEnd])) { sb.Append(WordToIpa(word)).Append(' '); }
             i = runEnd;
         }
-        var phonemes = WordSpaceBeforePunctuation().Replace(sb.ToString(), "$1");
-        return MultiSpace().Replace(phonemes, " ").Trim();
+        var phonemes = WordSpaceBeforePunctuation.Replace(sb.ToString(), "$1");
+        return MultiSpace.Replace(phonemes, " ").Trim();
     }
 
     /// <summary> Splits a hanzi run into words over the max-probability path of jieba's frequency dictionary, just like jieba does. </summary>
@@ -140,8 +140,8 @@ public static partial class ChineseG2P {
 
     /// <summary> Converts arabic numbers to hanzi so they can be spoken in Chinese, e.g. "114" -> "一百一十四" (yet years digit-by-digit, "2024年" -> "二零二四年"). </summary>
     static string ConvertNumbers(string text) {
-        text = YearNumber().Replace(text, m => $"{DigitsToHanzi(m.Groups[1].Value)}年");
-        return Number().Replace(text, m => m.Groups[2].Success ? $"{IntegerToHanzi(m.Groups[1].Value)}点{DigitsToHanzi(m.Groups[2].Value[1..])}" : IntegerToHanzi(m.Groups[1].Value));
+        text = YearNumber.Replace(text, m => $"{DigitsToHanzi(m.Groups[1].Value)}年");
+        return Number.Replace(text, m => m.Groups[2].Success ? $"{IntegerToHanzi(m.Groups[1].Value)}点{DigitsToHanzi(m.Groups[2].Value[1..])}" : IntegerToHanzi(m.Groups[1].Value));
     }
 
     static string DigitsToHanzi(string digits) => string.Concat(digits.Select(d => "零一二三四五六七八九"[d - '0']));
@@ -172,8 +172,8 @@ public static partial class ChineseG2P {
 
     static bool IsHanzi(char c) => c >= '一' && c <= '鿿';
 
-    [GeneratedRegex(@"(\d+)年")]        private static partial Regex YearNumber();
-    [GeneratedRegex(@"(\d+)(\.\d+)?")]  private static partial Regex Number();
-    [GeneratedRegex(@" +([,.!?;:”)])")] private static partial Regex WordSpaceBeforePunctuation();
-    [GeneratedRegex(@" {2,}")]          private static partial Regex MultiSpace();
+    static readonly Regex YearNumber = new(@"(\d+)年", RegexOptions.Compiled);
+    static readonly Regex Number = new(@"(\d+)(\.\d+)?", RegexOptions.Compiled);
+    static readonly Regex WordSpaceBeforePunctuation = new(@" +([,.!?;:”)])", RegexOptions.Compiled);
+    static readonly Regex MultiSpace = new(@" {2,}", RegexOptions.Compiled);
 }

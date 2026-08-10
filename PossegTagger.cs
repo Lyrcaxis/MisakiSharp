@@ -47,7 +47,7 @@ public static class PossegTagger {
         var stateIndex = startLines.Select((s, i) => (s, i)).ToDictionary(x => (x.s.bmes, x.s.pos), x => x.i);
         int stateCount = startLines.Count;
         allStates = [.. Enumerable.Range(0, stateCount)];
-        transLogProb = [.. allStates.Select(_ => { var row = new double[stateCount]; Array.Fill(row, double.NegativeInfinity); return row; })];
+        transLogProb = [.. allStates.Select(_ => Enumerable.Repeat(double.NegativeInfinity, stateCount).ToArray())];
         var successors = allStates.Select(_ => new List<int>()).ToArray();
         foreach (var (b1, p1, b2, p2, logP) in transLines) { var (from, to) = (stateIndex[(b1, p1)], stateIndex[(b2, p2)]); transLogProb[from][to] = logP; successors[from].Add(to); }
         transSuccessors = [.. successors.Select(list => list.ToArray())];
@@ -197,7 +197,7 @@ public static class PossegTagger {
     public static void InitializeFinalseg(TextReader hmmTable) {
         int StateIndex(string s) => Array.IndexOf(bmesStates, s[0]);
         finalsegStartLogProb = new double[4];
-        finalsegTransLogProb = [.. Enumerable.Range(0, 4).Select(_ => { var row = new double[4]; Array.Fill(row, MinFloat); return row; })];
+        finalsegTransLogProb = [.. Enumerable.Range(0, 4).Select(_ => Enumerable.Repeat(MinFloat, 4).ToArray())];
         finalsegEmitLogProb = [.. Enumerable.Range(0, 4).Select(_ => new Dictionary<char, double>())];
         while (hmmTable.ReadLine() is string line) {
             var f = line.Split('\t');
@@ -287,7 +287,7 @@ public static class PossegTagger {
                 // Mirrors finalseg's re_skip split: alnum runs (with optional .digits and %) come out whole...
                 int end = i + 1;
                 while (end < chunk.Length && IsAsciiAlnum(chunk[end])) { end++; }
-                if (end < chunk.Length && chunk[end] == '.') { int d = end + 1; while (d < chunk.Length && char.IsAsciiDigit(chunk[d])) { d++; } if (d > end + 1) { end = d; } }
+                if (end < chunk.Length && chunk[end] == '.') { int d = end + 1; while (d < chunk.Length && chunk[d] is >= '0' and <= '9') { d++; } if (d > end + 1) { end = d; } }
                 if (end < chunk.Length && chunk[end] == '%') { end++; }
                 result.Add(chunk[i..end]); i = end;
             } else {
